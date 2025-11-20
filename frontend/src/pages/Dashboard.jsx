@@ -20,7 +20,8 @@ const Dashboard = () => {
         if (!token) {
             navigate('/');
         } else {
-            setUser({ username: 'User', role: role || 'Guest' });
+            // Redirect to the unified events page which handles role-based views
+            navigate('/events');
         }
     }, [navigate]);
 
@@ -45,6 +46,17 @@ const Dashboard = () => {
                 <p style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '2rem' }}>
                     You have successfully authenticated with the User Authentication Service.
                 </p>
+
+                {/* Only show for organizers */}
+                        {user.role.toLowerCase() === 'organizer' && (
+                            <button
+                                className="btn-primary"
+                                style={{ marginBottom: '1rem' }}
+                                onClick={() => navigate('/organizer/events')}
+                            >
+                                Manage My Events
+                            </button>
+                )}
 
                 <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem', marginBottom: '2rem' }}>
                     <p style={{ margin: '0.5rem 0' }}><strong>Status:</strong> Authenticated ✅</p>

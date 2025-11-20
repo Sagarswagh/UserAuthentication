@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,6 +10,28 @@ const AuthForm = ({ role }) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+
+    const [notification, setNotification] = useState('');
+
+    // Show notification from sessionStorage after redirect (for sign in)
+    useEffect(() => {
+        const notif = window.sessionStorage.getItem('auth_notification');
+        if (notif) {
+            setNotification(notif);
+            setTimeout(() => setNotification(''), 2500);
+            window.sessionStorage.removeItem('auth_notification');
+        }
+    }, []);
+
+    // Show notification from sessionStorage after redirect (for sign in)
+    useEffect(() => {
+        const notif = window.sessionStorage.getItem('auth_notification');
+        if (notif) {
+            setNotification(notif);
+            setTimeout(() => setNotification(''), 2500);
+            window.sessionStorage.removeItem('auth_notification');
+        }
+    }, []);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -35,8 +57,9 @@ const AuthForm = ({ role }) => {
                     document.cookie = `role=${response.data.role}; path=/;`;
                     document.cookie = `username=${response.data.username}; path=/;`;
                     document.cookie = `user_id=${response.data.user_id}; path=/;`;
-                    alert(`Logged in as ${response.data.role}`);
-                    navigate('/dashboard');
+                    // Store notification in sessionStorage so it persists after navigation
+                    window.sessionStorage.setItem('auth_notification', `Logged in as ${response.data.role}`);
+                    navigate('/events');
                 } else {
                     setError('Invalid credentials');
                 }
@@ -55,7 +78,8 @@ const AuthForm = ({ role }) => {
                 };
                 const response = await axios.post('http://localhost:8000/api/users/register', payload);
                 if (response.status === 200) {
-                    alert('Registration successful! Please login with your new account.');
+                    setNotification('Registration successful! Please login with your new account.');
+                    setTimeout(() => setNotification(''), 2500);
                     setIsLogin(true);
                 } else {
                     setError('Registration failed');
@@ -67,7 +91,28 @@ const AuthForm = ({ role }) => {
     };
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem', maxWidth: '400px', width: '100%', margin: '0 auto' }}>
+        <div className="glass-panel" style={{ padding: '2rem', maxWidth: '400px', width: '100%', margin: '0 auto', position: 'relative' }}>
+            {notification && (
+                <div style={{
+                    position: 'absolute',
+                    top: '-2.5rem',
+                    left: 0,
+                    right: 0,
+                    margin: '0 auto',
+                    background: '#22c55e',
+                    color: '#fff',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    fontSize: '1rem',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    zIndex: 10
+                }}>
+                    {notification}
+                </div>
+            )}
+
             <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 {role.charAt(0).toUpperCase() + role.slice(1)} {isLogin ? 'Login' : 'Sign Up'}
             </h2>

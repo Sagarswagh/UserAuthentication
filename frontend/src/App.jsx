@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import AuthForm from './components/AuthForm';
+import OrganizerEvents from './pages/OrganiseEvents';
+import Events from './pages/Events';
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
               <AuthForm role="organizer" />
             </div>
           } />
+          <Route path="/organizer/events" element={<OrganizerEvents />} />
+          <Route path="/events" element={<Events />} />
         </Routes>
       </div>
     </Router>

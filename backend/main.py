@@ -9,12 +9,12 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 # Allow CORS for React frontend
-origins = [
-    "http://localhost:5173", # Default Vite port
-    "http://localhost:5174",
-    "http://localhost:3000",
-]
-
+# origins = [
+#     "http://localhost:5173", # Default Vite port
+#     "http://localhost:5174",
+#     "http://localhost:3000",
+# ]
+origins = ["*"]  # Allow all origins for simplicity; adjust in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
