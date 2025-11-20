@@ -41,5 +41,42 @@ The service uses two main tables:
 
 ## API Endpoints
 
-*   `POST /api/users/register`: Register a new user.
 *   `POST /api/users/login`: Authenticate a user and receive a token.
+
+## Running the Application
+
+### Prerequisites
+
+*   Python 3.8+
+*   Node.js 14+
+*   PostgreSQL
+
+### Quick Start
+
+You can run both the backend and frontend concurrently using the provided script:
+
+```bash
+./run.sh
+```
+
+### Manual Setup
+
+**1. Backend**
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+The backend will run at `http://localhost:8000`.
+
+**2. Frontend**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will run at `http://localhost:5173`.
