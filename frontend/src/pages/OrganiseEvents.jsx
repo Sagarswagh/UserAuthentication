@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import TimePicker from '../components/TimePicker';
 
 const RAW_EVENTS_BASE = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001';
 const EVENTS_API_BASE = RAW_EVENTS_BASE.replace(/\/$/, '') + '/events';
@@ -44,7 +45,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
         end_date: '',
         end_time: '',
         location: '',
-        remaining_seats: 0,
+        total_seats: 0,
     });
     const [editLoading, setEditLoading] = useState(false);
 
@@ -144,7 +145,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             end_time: endIso,
             organizer_id: organizerId,
             location: form.location || null,
-            remaining_seats: form.total_seats,
+            total_seats: form.total_seats,
         };
 
         try {
@@ -204,7 +205,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             end_date: e.date,
             end_time: e.time,
             location: ev.location || '',
-            remaining_seats: ev.remaining_seats || 0,
+            total_seats: ev.total_seats || 0,
         });
     };
 
@@ -217,13 +218,13 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             end_date: '',
             end_time: '',
             location: '',
-            remaining_seats: 0,
+            total_seats: 0,
         });
     };
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditForm((p) => ({ ...p, [name]: name === 'remaining_seats' ? Number(value) : value }));
+        setEditForm((p) => ({ ...p, [name]: name === 'total_seats' ? Number(value) : value }));
     };
 
     const handleUpdateEvent = async (id) => {
@@ -250,7 +251,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             start_time: startIso,
             end_time: endIso,
             location: editForm.location || null,
-            remaining_seats: editForm.remaining_seats,
+            total_seats: editForm.total_seats,
         };
 
         try {
@@ -287,18 +288,42 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
                         <input name="event_name" value={form.event_name} onChange={handleChange} className="input-field" required />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <input type="date" name="start_date" value={form.start_date} onChange={handleChange} className="input-field" required />
-                        <input type="time" name="start_time" value={form.start_time} onChange={handleChange} className="input-field" required />
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Start Date</label>
+                            <input type="date" name="start_date" value={form.start_date} onChange={handleChange} className="input-field" required />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Start Time</label>
+                            <TimePicker name="start_time" value={form.start_time} onChange={handleChange} required />
+                        </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <input type="date" name="end_date" value={form.end_date} onChange={handleChange} className="input-field" required />
-                        <input type="time" name="end_time" value={form.end_time} onChange={handleChange} className="input-field" required />
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.25rem' }}>End Date</label>
+                            <input type="date" name="end_date" value={form.end_date} onChange={handleChange} className="input-field" required />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.25rem' }}>End Time</label>
+                            <TimePicker name="end_time" value={form.end_time} onChange={handleChange} required />
+                        </div>
                     </div>
                     <div style={{ marginBottom: '0.75rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.25rem' }}>Location</label>
                         <input name="location" value={form.location} onChange={handleChange} className="input-field" placeholder="Location" required />
                     </div>
                     <div style={{ marginBottom: '0.75rem' }}>
-                        <input type="number" name="total_seats" value={form.total_seats} onChange={handleChange} className="input-field" min={0} required />
+                        <label style={{ display: 'block', marginBottom: '0.25rem' }}>Total Seats</label>
+                        <input
+                            type="number"
+                            name="total_seats"
+                            value={form.total_seats}
+                            onChange={handleChange}
+                            className="input-field number-input"
+                            min={0}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            required
+                        />
                     </div>
                     <button type="submit" className="btn-primary" disabled={creating} style={{ width: '100%' }}>
                         {creating ? 'Creating...' : 'Create Event'}
@@ -390,7 +415,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
                                             <input name="location" value={editForm.location} onChange={handleEditChange} className="input-field" placeholder="Location" />
                                         </div>
                                         <div style={{ marginBottom: 8 }}>
-                                            <input type="number" name="remaining_seats" value={editForm.remaining_seats} onChange={handleEditChange} className="input-field" min={0} placeholder="Remaining Seats" />
+                                            <input type="number" name="total_seats" value={editForm.total_seats} onChange={handleEditChange} className="input-field" min={0} placeholder="Total Seats" />
                                         </div>
                                         <div style={{ display: 'flex', gap: 8 }}>
                                             <button onClick={() => handleUpdateEvent(ev.event_id || ev.id)} className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving...' : 'Save'}</button>
@@ -403,7 +428,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
                                         <p style={{ margin: '0 0 6px 0', color: '#94a3b8' }}>{ev.location || 'Location TBD'}</p>
                                         <p style={{ margin: '0 0 6px 0', color: '#cbd5e1' }}><strong>Start:</strong> {new Date(ev.start_time).toLocaleString()}</p>
                                         <p style={{ margin: '0 0 6px 0', color: '#cbd5e1' }}><strong>End:</strong> {new Date(ev.end_time).toLocaleString()}</p>
-                                        <p style={{ margin: '0 0 8px 0', color: '#cbd5e1' }}><strong>Remaining Seats:</strong> {ev.remaining_seats}</p>
+                                        <p style={{ margin: '0 0 8px 0', color: '#cbd5e1' }}><strong>Total Seats:</strong> {ev.total_seats}</p>
                                         <div style={{ display: 'flex', gap: 8 }}>
                                             <button onClick={() => startEdit(ev)} className="btn-primary">Edit</button>
                                         </div>

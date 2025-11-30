@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import OrganizerEvents from './OrganiseEvents';
+import TimePicker from '../components/TimePicker';
 
 const rawEventsBase = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001/events';
 const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawEventsBase.replace(/\/$/, '') + '/events';
@@ -16,11 +17,11 @@ function getCookie(name) {
 // Remove duplicate StudentEvents and old Events component. Only keep the unified Events component and EventsList.
 
 // Unified Events List (for both roles)
-const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit }) => {
+const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit, onDelete, title }) => {
     return (
         <div style={{ padding: '2rem', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-                <h1 style={{ marginBottom: '1rem' }}>All Events</h1>
+                {title && <h1 style={{ marginBottom: '1rem' }}>{title}</h1>}
                 {loading && <p>Loading events...</p>}
                 {error && <p style={{ color: '#ef4444' }}>{error}</p>}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
@@ -35,26 +36,54 @@ const EventsList = ({ token, showRegister, onRegister, events, loading, error, s
                                 <strong>End:</strong> {new Date(ev.end_time).toLocaleString()}
                             </p>
                             <p style={{ fontSize: '0.9rem', margin: '0.25rem 0' }}>
-                                <strong>Remaining Seats:</strong> {ev.remaining_seats}
+                                <strong>Total Seats:</strong> {ev.total_seats}
                             </p>
                             {showRegister && (
                                 <div style={{ marginTop: '0.75rem' }}>
                                     <button
                                         className="btn-primary"
                                         onClick={() => onRegister(ev.event_id)}
-                                        disabled={ev.remaining_seats <= 0}
                                     >
-                                        {ev.remaining_seats > 0 ? 'Register' : 'Full'}
+                                        Register
                                     </button>
                                 </div>
                             )}
                             {showEdit && (
-                                <div style={{ marginTop: '0.75rem' }}>
+                                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
                                     <button
                                         className="btn-primary"
                                         onClick={() => onEdit(ev)}
+                                        style={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.35rem',
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.875rem'
+                                        }}
                                     >
+                                        <span style={{ fontSize: '0.875rem' }}>✏️</span>
                                         Edit
+                                    </button>
+                                    <button
+                                        className="btn-secondary"
+                                        onClick={() => onDelete(ev.event_id, ev.event_name)}
+                                        style={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.35rem',
+                                            background: 'rgba(239, 68, 68, 0.2)',
+                                            borderColor: 'rgba(239, 68, 68, 0.5)',
+                                            color: '#f87171',
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '0.875rem' }}>🗑️</span>
+                                        Delete
                                     </button>
                                 </div>
                             )}
@@ -91,7 +120,7 @@ const Events = () => {
         end_date: '',
         end_time: '',
         location: '',
-        remaining_seats: 0,
+        total_seats: 0,
     });
     const [editLoading, setEditLoading] = useState(false);
 
@@ -165,7 +194,7 @@ const Events = () => {
             end_date: e.date,
             end_time: e.time,
             location: ev.location || '',
-            remaining_seats: ev.remaining_seats || 0,
+            total_seats: ev.total_seats || 0,
         });
     };
 
@@ -179,14 +208,14 @@ const Events = () => {
             end_date: '',
             end_time: '',
             location: '',
-            remaining_seats: 0,
+            total_seats: 0,
         });
     };
 
     // Handle edit form changes
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditForm((p) => ({ ...p, [name]: name === 'remaining_seats' ? Number(value) : value }));
+        setEditForm((p) => ({ ...p, [name]: name === 'total_seats' ? Number(value) : value }));
     };
 
     // Helper to build datetime string
@@ -220,7 +249,7 @@ const Events = () => {
             start_time: startIso,
             end_time: endIso,
             location: editForm.location || null,
-            remaining_seats: editForm.remaining_seats,
+            total_seats: editForm.total_seats,
         };
 
         try {
@@ -239,8 +268,106 @@ const Events = () => {
         }
     };
 
+    // Delete event
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
+
+    const handleDeleteEvent = async (eventId) => {
+        try {
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            await axios.delete(`${EVENTS_API_BASE}/${eventId}`, { headers });
+            setNotification('Event deleted successfully');
+            setTimeout(() => setNotification(''), 2500);
+            setDeleteConfirm(null);
+            fetchAllEvents();
+        } catch (err) {
+            console.error(err);
+            setNotification(err.response?.data?.detail || 'Failed to delete event.');
+        }
+    };
+
+    const handleLogout = () => {
+        document.cookie = 'token=; Max-Age=0; path=/;';
+        document.cookie = 'role=; Max-Age=0; path=/;';
+        document.cookie = 'username=; Max-Age=0; path=/;';
+        document.cookie = 'user_id=; Max-Age=0; path=/;';
+        navigate('/');
+    };
+
     return (
         <div style={{ position: 'relative', minHeight: '100vh' }}>
+            {/* User Menu - Top Right */}
+            <div style={{
+                position: 'fixed',
+                top: '1.5rem',
+                right: '2rem',
+                zIndex: 100
+            }}>
+                <div style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        style={{
+                            background: 'rgba(30, 41, 59, 0.9)',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            borderRadius: '0.5rem',
+                            padding: '0.5rem 1rem',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.borderColor = 'rgba(99, 102, 241, 0.5)'}
+                        onMouseLeave={(e) => e.target.style.borderColor = 'rgba(99, 102, 241, 0.3)'}
+                    >
+                        <span style={{ fontSize: '1rem' }}>👤</span>
+                        {username || 'User'}
+                        <span style={{ fontSize: '0.75rem' }}>▼</span>
+                    </button>
+
+                    {showUserMenu && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 0.5rem)',
+                            right: 0,
+                            background: 'rgba(15, 23, 42, 0.98)',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            borderRadius: '0.5rem',
+                            padding: '0.5rem',
+                            minWidth: '150px',
+                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)'
+                        }}>
+                            <button
+                                onClick={handleLogout}
+                                style={{
+                                    width: '100%',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#f87171',
+                                    padding: '0.6rem 1rem',
+                                    borderRadius: '0.25rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                            >
+                                <span>🚪</span>
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {notification && (
                 <div style={{
                     position: 'fixed',
@@ -269,7 +396,7 @@ const Events = () => {
             )}
             {/* Tab content */}
             {(role !== 'organizer' || tab === 'all') && (
-                <EventsList token={token} showRegister={true} onRegister={handleRegister} events={events} loading={loading} error={error} />
+                <EventsList token={token} showRegister={true} onRegister={handleRegister} events={events} loading={loading} error={error} title="All Events" />
             )}
             {role === 'organizer' && tab === 'create' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -278,8 +405,8 @@ const Events = () => {
                 </div>
             )}
             {role === 'organizer' && tab === 'manage' && (
-                <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-                    <h2>My Events</h2>
+                <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 0' }}>
+                    <h2 style={{ marginBottom: '2rem' }}>My Events</h2>
                     {/* List and update only own events */}
                     <EventsList
                         token={token}
@@ -290,7 +417,56 @@ const Events = () => {
                         error={error}
                         showEdit={true}
                         onEdit={handleEditEvent}
+                        onDelete={(eventId, eventName) => setDeleteConfirm({ id: eventId, name: eventName })}
                     />
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }}>
+                    <div className="glass-panel" style={{
+                        padding: '2rem',
+                        maxWidth: '450px',
+                        width: '90%',
+                    }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Delete Event</h2>
+                        <p style={{ marginBottom: '1.5rem', color: '#cbd5e1' }}>
+                            Are you sure you want to delete "<strong>{deleteConfirm.name}</strong>"?
+                            This action cannot be undone.
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => handleDeleteEvent(deleteConfirm.id)}
+                                className="btn-primary"
+                                style={{
+                                    flex: 1,
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                }}
+                            >
+                                Yes, Delete
+                            </button>
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="btn-secondary"
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -343,12 +519,10 @@ const Events = () => {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>Start Time</label>
-                                <input
-                                    type="time"
+                                <TimePicker
                                     name="start_time"
                                     value={editForm.start_time}
                                     onChange={handleEditChange}
-                                    className="input-field"
                                     required
                                 />
                             </div>
@@ -368,12 +542,10 @@ const Events = () => {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>End Time</label>
-                                <input
-                                    type="time"
+                                <TimePicker
                                     name="end_time"
                                     value={editForm.end_time}
                                     onChange={handleEditChange}
-                                    className="input-field"
                                     required
                                 />
                             </div>
@@ -392,11 +564,11 @@ const Events = () => {
                         </div>
 
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Remaining Seats</label>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Total Seats</label>
                             <input
                                 type="number"
-                                name="remaining_seats"
-                                value={editForm.remaining_seats}
+                                name="total_seats"
+                                value={editForm.total_seats}
                                 onChange={handleEditChange}
                                 className="input-field"
                                 min={0}
