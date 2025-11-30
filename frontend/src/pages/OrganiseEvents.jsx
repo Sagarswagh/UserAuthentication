@@ -44,6 +44,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
         end_date: '',
         end_time: '',
         location: '',
+        remaining_seats: 0,
     });
     const [editLoading, setEditLoading] = useState(false);
 
@@ -203,6 +204,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             end_date: e.date,
             end_time: e.time,
             location: ev.location || '',
+            remaining_seats: ev.remaining_seats || 0,
         });
     };
 
@@ -215,12 +217,13 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             end_date: '',
             end_time: '',
             location: '',
+            remaining_seats: 0,
         });
     };
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditForm((p) => ({ ...p, [name]: value }));
+        setEditForm((p) => ({ ...p, [name]: name === 'remaining_seats' ? Number(value) : value }));
     };
 
     const handleUpdateEvent = async (id) => {
@@ -247,6 +250,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             start_time: startIso,
             end_time: endIso,
             location: editForm.location || null,
+            remaining_seats: editForm.remaining_seats,
         };
 
         try {
@@ -383,7 +387,10 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
                                             <input type="time" name="end_time" value={editForm.end_time} onChange={handleEditChange} className="input-field" />
                                         </div>
                                         <div style={{ marginBottom: 8 }}>
-                                            <input name="location" value={editForm.location} onChange={handleEditChange} className="input-field" />
+                                            <input name="location" value={editForm.location} onChange={handleEditChange} className="input-field" placeholder="Location" />
+                                        </div>
+                                        <div style={{ marginBottom: 8 }}>
+                                            <input type="number" name="remaining_seats" value={editForm.remaining_seats} onChange={handleEditChange} className="input-field" min={0} placeholder="Remaining Seats" />
                                         </div>
                                         <div style={{ display: 'flex', gap: 8 }}>
                                             <button onClick={() => handleUpdateEvent(ev.event_id || ev.id)} className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving...' : 'Save'}</button>

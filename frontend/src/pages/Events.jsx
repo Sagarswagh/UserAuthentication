@@ -16,7 +16,7 @@ function getCookie(name) {
 // Remove duplicate StudentEvents and old Events component. Only keep the unified Events component and EventsList.
 
 // Unified Events List (for both roles)
-const EventsList = ({ token, showRegister, onRegister, events, loading, error }) => {
+const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit }) => {
     return (
         <div style={{ padding: '2rem', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -48,6 +48,16 @@ const EventsList = ({ token, showRegister, onRegister, events, loading, error })
                                     </button>
                                 </div>
                             )}
+                            {showEdit && (
+                                <div style={{ marginTop: '0.75rem' }}>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={() => onEdit(ev)}
+                                    >
+                                        Edit
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -71,6 +81,19 @@ const Events = () => {
 
     // For create event modal/section
     const [showCreate, setShowCreate] = useState(false);
+
+    // For editing events
+    const [editingEvent, setEditingEvent] = useState(null);
+    const [editForm, setEditForm] = useState({
+        event_name: '',
+        start_date: '',
+        start_time: '',
+        end_date: '',
+        end_time: '',
+        location: '',
+        remaining_seats: 0,
+    });
+    const [editLoading, setEditLoading] = useState(false);
 
     useEffect(() => {
         if (!token) navigate('/');
@@ -120,6 +143,102 @@ const Events = () => {
         }
     };
 
+    // Helper to convert ISO datetime to date and time inputs
+    const toDateAndTime = (iso) => {
+        if (!iso) return { date: '', time: '' };
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return { date: '', time: '' };
+        const date = d.toISOString().slice(0, 10);
+        const time = d.toTimeString().slice(0, 5);
+        return { date, time };
+    };
+
+    // Start editing an event
+    const handleEditEvent = (ev) => {
+        setEditingEvent(ev);
+        const s = toDateAndTime(ev.start_time);
+        const e = toDateAndTime(ev.end_time);
+        setEditForm({
+            event_name: ev.event_name || '',
+            start_date: s.date,
+            start_time: s.time,
+            end_date: e.date,
+            end_time: e.time,
+            location: ev.location || '',
+            remaining_seats: ev.remaining_seats || 0,
+        });
+    };
+
+    // Cancel editing
+    const cancelEdit = () => {
+        setEditingEvent(null);
+        setEditForm({
+            event_name: '',
+            start_date: '',
+            start_time: '',
+            end_date: '',
+            end_time: '',
+            location: '',
+            remaining_seats: 0,
+        });
+    };
+
+    // Handle edit form changes
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditForm((p) => ({ ...p, [name]: name === 'remaining_seats' ? Number(value) : value }));
+    };
+
+    // Helper to build datetime string
+    const buildDateTime = (dateStr, timeStr) => {
+        if (!dateStr || !timeStr) return null;
+        return `${dateStr}T${timeStr}:00`;
+    };
+
+    // Save edited event
+    const handleSaveEdit = async () => {
+        setError('');
+        const startIso = buildDateTime(editForm.start_date, editForm.start_time);
+        const endIso = buildDateTime(editForm.end_date, editForm.end_time);
+        if (!startIso || !endIso) {
+            setError('Please provide both start and end date/time.');
+            return;
+        }
+        const startDt = new Date(startIso);
+        const endDt = new Date(endIso);
+        if (isNaN(startDt.getTime()) || isNaN(endDt.getTime())) {
+            setError('Invalid start or end date/time.');
+            return;
+        }
+        if (endDt <= startDt) {
+            setError('End time must be after start time.');
+            return;
+        }
+
+        const payload = {
+            event_name: editForm.event_name,
+            start_time: startIso,
+            end_time: endIso,
+            location: editForm.location || null,
+            remaining_seats: editForm.remaining_seats,
+        };
+
+        try {
+            setEditLoading(true);
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            await axios.put(`${EVENTS_API_BASE}/${editingEvent.event_id}`, payload, { headers });
+            setNotification('Event updated successfully');
+            setTimeout(() => setNotification(''), 2500);
+            cancelEdit();
+            fetchAllEvents();
+        } catch (err) {
+            console.error(err);
+            setError(err.response?.data?.detail || 'Failed to update event.');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
     return (
         <div style={{ position: 'relative', minHeight: '100vh' }}>
             {notification && (
@@ -162,8 +281,146 @@ const Events = () => {
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
                     <h2>My Events</h2>
                     {/* List and update only own events */}
-                    <EventsList token={token} showRegister={false} onRegister={() => {}} events={myEvents} loading={loading} error={error} />
-                    {/* Add update/delete UI here as needed */}
+                    <EventsList
+                        token={token}
+                        showRegister={false}
+                        onRegister={() => { }}
+                        events={myEvents}
+                        loading={loading}
+                        error={error}
+                        showEdit={true}
+                        onEdit={handleEditEvent}
+                    />
+                </div>
+            )}
+
+            {/* Edit Event Modal */}
+            {editingEvent && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }}>
+                    <div className="glass-panel" style={{
+                        padding: '2rem',
+                        maxWidth: '600px',
+                        width: '90%',
+                        maxHeight: '90vh',
+                        overflowY: 'auto',
+                    }}>
+                        <h2 style={{ marginTop: 0 }}>Edit Event</h2>
+                        {error && <div style={{ color: '#ef4444', marginBottom: '1rem' }}>{error}</div>}
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Event Name</label>
+                            <input
+                                name="event_name"
+                                value={editForm.event_name}
+                                onChange={handleEditChange}
+                                className="input-field"
+                                required
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Start Date</label>
+                                <input
+                                    type="date"
+                                    name="start_date"
+                                    value={editForm.start_date}
+                                    onChange={handleEditChange}
+                                    className="input-field"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Start Time</label>
+                                <input
+                                    type="time"
+                                    name="start_time"
+                                    value={editForm.start_time}
+                                    onChange={handleEditChange}
+                                    className="input-field"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>End Date</label>
+                                <input
+                                    type="date"
+                                    name="end_date"
+                                    value={editForm.end_date}
+                                    onChange={handleEditChange}
+                                    className="input-field"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>End Time</label>
+                                <input
+                                    type="time"
+                                    name="end_time"
+                                    value={editForm.end_time}
+                                    onChange={handleEditChange}
+                                    className="input-field"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Location</label>
+                            <input
+                                name="location"
+                                value={editForm.location}
+                                onChange={handleEditChange}
+                                className="input-field"
+                                placeholder="Location"
+                                required
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Remaining Seats</label>
+                            <input
+                                type="number"
+                                name="remaining_seats"
+                                value={editForm.remaining_seats}
+                                onChange={handleEditChange}
+                                className="input-field"
+                                min={0}
+                                required
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="btn-primary"
+                                disabled={editLoading}
+                            >
+                                {editLoading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                                onClick={cancelEdit}
+                                className="btn-secondary"
+                                disabled={editLoading}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
