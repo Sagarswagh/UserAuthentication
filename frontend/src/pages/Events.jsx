@@ -14,10 +14,8 @@ function getCookie(name) {
     return null;
 }
 
-// Remove duplicate StudentEvents and old Events component. Only keep the unified Events component and EventsList.
 
-// Unified Events List (for both roles)
-const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit, onDelete, showReminder, onReminder, title, userBookings = [], availableSeatsMap = {} }) => {
+const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading, error, showEdit, onEdit, onDelete, showReminder, onReminder, title, userBookings = [], availableSeatsMap = {} }) => {
     return (
         <div style={{ padding: '2rem', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -74,16 +72,21 @@ const EventsList = ({ token, showRegister, onRegister, events, loading, error, s
                             {showRegister && (
                                 <div style={{ marginTop: '0.75rem' }}>
                                     {(() => {
-                                        const isRegistered = userBookings.some(b => String(b.event_id) === String(ev.event_id));
+                                        const activeBooking = userBookings.find(b =>
+                                            String(b.event_id) === String(ev.event_id) &&
+                                            (b.status === 'confirmed' || b.status === 'waiting')
+                                        );
+                                        const isRegistered = !!activeBooking;
                                         const availableSeats = availableSeatsMap[ev.event_id];
-                                        const buttonText = isRegistered ? 'Registered' : availableSeats === 0 ? 'Add to Waitlist' : 'Register';
-                                        console.log(`Event ${ev.event_name}: isRegistered=${isRegistered}, availableSeats=${availableSeats}, buttonText=${buttonText}`);
+                                        const buttonText = isRegistered ? 'Cancel Registration' : availableSeats === 0 ? 'Add to Waitlist' : 'Register';
                                         return (
                                             <button
                                                 className={isRegistered ? "btn-secondary" : "btn-primary"}
-                                                onClick={() => onRegister(ev)}
-                                                disabled={isRegistered}
-                                                style={availableSeats === 0 && !isRegistered ? {
+                                                onClick={() => isRegistered ? onCancel(activeBooking) : onRegister(ev)}
+                                                style={isRegistered ? {
+                                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                                    borderColor: '#ef4444',
+                                                } : availableSeats === 0 ? {
                                                     background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                                 } : {}}
                                             >
@@ -154,9 +157,7 @@ const Events = () => {
     const [myEvents, setMyEvents] = useState([]);
     const [userBookings, setUserBookings] = useState([]);
     const [availableSeatsMap, setAvailableSeatsMap] = useState({});
-
-    // For create event modal/section
-    const [showCreate, setShowCreate] = useState(false);
+    const [cancelConfirm, setCancelConfirm] = useState(null);
 
     // For editing events
     const [editingEvent, setEditingEvent] = useState(null);
@@ -172,7 +173,6 @@ const Events = () => {
     const [editLoading, setEditLoading] = useState(false);
 
     useEffect(() => {
-        console.log('🔵 useEffect running - token:', !!token, 'role:', role, 'userId:', userId);
         if (!token) navigate('/');
         // Show notification from sessionStorage after redirect (for sign in)
         const notif = window.sessionStorage.getItem('auth_notification');
@@ -183,32 +183,20 @@ const Events = () => {
         }
         fetchAllEvents();
         // Fetch bookings for all users (both students and organizers)
-        console.log('🟢 Calling fetchUserBookings for role:', role);
         fetchUserBookings();
     }, [token, navigate]);
 
     // Fetch user bookings
     const fetchUserBookings = async () => {
-        console.log('📞 fetchUserBookings called with userId:', userId);
-        if (!userId) {
-            console.log('❌ No userId, returning early');
-            return;
-        }
+        if (!userId) return;
         try {
-            const url = `/user/${userId}/bookings`;
-            console.log('📡 Fetching from:', url);
-            const res = await axios.get(url);
-            console.log('✅ Bookings fetched:', res.data);
+            const res = await axios.get(`/user/${userId}/bookings`);
             setUserBookings(res.data || []);
         } catch (err) {
-            console.error('❌ Failed to fetch bookings:', err);
+            console.error('Failed to fetch bookings:', err);
         }
     };
 
-    // Log whenever userBookings changes
-    useEffect(() => {
-        console.log('📊 userBookings updated. Length:', userBookings.length, 'Data:', userBookings);
-    }, [userBookings]);
 
     // Fetch available seats for events
     const fetchAvailableSeats = async (events) => {
@@ -275,6 +263,44 @@ const Events = () => {
             }
         } catch (err) {
             setNotification(err.response?.data?.detail || 'Failed to register.');
+        }
+    };
+
+    // Cancel registration handler - shows confirmation
+    const handleCancelRegistration = async (booking) => {
+        if (!booking || !booking.booking_id) {
+            setNotification('Invalid booking');
+            return;
+        }
+        // Set confirmation modal
+        setCancelConfirm(booking);
+    };
+
+    // Confirm cancellation
+    const confirmCancel = async () => {
+        const booking = cancelConfirm;
+        setCancelConfirm(null);
+
+        try {
+            const url = `/booking/cancel/${booking.booking_id}`;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+            const res = await axios.post(url, {}, { headers });
+            if (res.status === 200 || res.status === 204) {
+                setNotification('Registration cancelled successfully');
+                // Optimistic update: remove from userBookings
+                setUserBookings(prev => prev.filter(b => b.booking_id !== booking.booking_id));
+                setTimeout(() => setNotification(''), 2500);
+                fetchAllEvents(); // Refresh to update available seats
+                // Refresh bookings after a delay
+                setTimeout(() => {
+                    fetchUserBookings();
+                }, 500);
+            } else {
+                setNotification('Cancellation response: ' + res.statusText);
+            }
+        } catch (err) {
+            setNotification(err.response?.data?.detail || 'Failed to cancel registration.');
         }
     };
 
@@ -511,22 +537,6 @@ const Events = () => {
                 </div>
             )}
             {/* Organizer: show tabs and create/manage UI */}
-            <div style={{ position: 'fixed', bottom: '10px', left: '10px', zIndex: 9999 }}>
-                <button onClick={() => {
-                    console.log('--- DEBUG STATE ---');
-                    console.log('User ID:', userId);
-                    console.log('Role:', role);
-                    console.log('Events:', events);
-                    console.log('User Bookings:', userBookings);
-                    if (events.length > 0 && userBookings.length > 0) {
-                        const evId = events[0].event_id;
-                        const bkId = userBookings[0].event_id;
-                        console.log(`Comparing Event[0] (${evId}) with Booking[0] (${bkId})`);
-                        console.log('Match:', String(evId) === String(bkId));
-                    }
-                    fetchUserBookings(); // Manually trigger fetch
-                }}>Debug State</button>
-            </div>
             {role === 'organizer' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto', marginTop: '2rem', marginBottom: '2rem', display: 'flex', gap: '1rem' }}>
                     <button className={tab === 'all' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('all')}>All Events</button>
@@ -536,7 +546,7 @@ const Events = () => {
             )}
             {/* Tab content */}
             {(role !== 'organizer' || tab === 'all') && (
-                <EventsList token={token} showRegister={true} onRegister={handleRegister} events={events} loading={loading} error={error} title="All Events" userBookings={userBookings} availableSeatsMap={availableSeatsMap} />
+                <EventsList token={token} showRegister={true} onRegister={handleRegister} onCancel={handleCancelRegistration} events={events} loading={loading} error={error} title="All Events" userBookings={userBookings} availableSeatsMap={availableSeatsMap} />
             )}
             {role === 'organizer' && tab === 'create' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -560,7 +570,55 @@ const Events = () => {
                         onDelete={(eventId, eventName) => setDeleteConfirm({ id: eventId, name: eventName })}
                         showReminder={true}
                         onReminder={handleSendReminder}
+                        availableSeatsMap={availableSeatsMap}
                     />
+                </div>
+            )}
+
+            {/* Cancel Confirmation Modal */}
+            {cancelConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }}>
+                    <div className="glass-panel" style={{
+                        padding: '2rem',
+                        maxWidth: '450px',
+                        width: '90%',
+                    }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Cancel Registration</h2>
+                        <p style={{ marginBottom: '1.5rem', color: '#cbd5e1' }}>
+                            Do you want to cancel your registration for this event?
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={confirmCancel}
+                                className="btn-primary"
+                                style={{
+                                    flex: 1,
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                }}
+                            >
+                                Yes, Cancel
+                            </button>
+                            <button
+                                onClick={() => setCancelConfirm(null)}
+                                className="btn-secondary"
+                                style={{ flex: 1 }}
+                            >
+                                No, Keep Registration
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

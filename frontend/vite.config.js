@@ -17,6 +17,10 @@ export default defineConfig({
       '/user': {
         target: 'http://localhost:8002',
         changeOrigin: true,
+      },
+      '/booking': {
+        target: 'http://localhost:8002',
+        changeOrigin: true,
       }
     }
   }
