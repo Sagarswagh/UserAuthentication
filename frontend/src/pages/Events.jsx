@@ -17,7 +17,7 @@ function getCookie(name) {
 // Remove duplicate StudentEvents and old Events component. Only keep the unified Events component and EventsList.
 
 // Unified Events List (for both roles)
-const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit, onDelete, title, userBookings = [], availableSeatsMap = {} }) => {
+const EventsList = ({ token, showRegister, onRegister, events, loading, error, showEdit, onEdit, onDelete, showReminder, onReminder, title, userBookings = [], availableSeatsMap = {} }) => {
     return (
         <div style={{ padding: '2rem', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -26,7 +26,7 @@ const EventsList = ({ token, showRegister, onRegister, events, loading, error, s
                 {error && <p style={{ color: '#ef4444' }}>{error}</p>}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                     {events.map((ev) => (
-                        <div key={ev.event_id} className="glass-panel" style={{ padding: '1rem' }}>
+                        <div key={ev.event_id} className="glass-panel" style={{ padding: '1rem', position: 'relative' }}>
                             <h3 style={{ margin: 0 }}>{ev.event_name}</h3>
                             <p style={{ color: '#94a3b8', margin: '0.5rem 0' }}>{ev.location || 'Location TBD'}</p>
                             <p style={{ fontSize: '0.9rem', margin: '0.25rem 0' }}>
@@ -38,6 +38,39 @@ const EventsList = ({ token, showRegister, onRegister, events, loading, error, s
                             <p style={{ fontSize: '0.9rem', margin: '0.25rem 0' }}>
                                 <strong>Available:</strong> {availableSeatsMap[ev.event_id] !== undefined ? availableSeatsMap[ev.event_id] : '...'}/{ev.total_seats}
                             </p>
+                            {showReminder && (
+                                <button
+                                    onClick={() => onReminder(ev)}
+                                    title="Send Reminder"
+                                    style={{
+                                        position: 'absolute',
+                                        top: '1rem',
+                                        right: '1rem',
+                                        background: 'transparent',
+                                        border: '1px solid rgba(99, 102, 241, 0.5)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.4rem 0.6rem',
+                                        cursor: 'pointer',
+                                        color: '#cbd5e1',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        fontSize: '0.8rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.background = 'rgba(99, 102, 241, 0.1)';
+                                        e.target.style.color = '#fff';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.background = 'transparent';
+                                        e.target.style.color = '#cbd5e1';
+                                    }}
+                                >
+                                    <span>🔔</span>
+                                    Send Reminder
+                                </button>
+                            )}
                             {showRegister && (
                                 <div style={{ marginTop: '0.75rem' }}>
                                     {(() => {
@@ -359,6 +392,24 @@ const Events = () => {
         }
     };
 
+    // Send Reminder
+    const handleSendReminder = async (event) => {
+        try {
+            const payload = {
+                event_id: event.event_id,
+                notification_type: "event_reminder"
+            };
+            // The notification service is on port 8003
+            await axios.post('http://localhost:8003/api/notifications/send', payload);
+            setNotification(`Reminder sent for "${event.event_name}"`);
+            console.log(`Reminder sent for "${event.event_name}"`);
+            setTimeout(() => setNotification(''), 2500);
+        } catch (err) {
+            console.error('Failed to send reminder:', err);
+            setNotification('Failed to send reminder. Is the service running?');
+        }
+    };
+
     const handleLogout = () => {
         document.cookie = 'token=; Max-Age=0; path=/;';
         document.cookie = 'role=; Max-Age=0; path=/;';
@@ -456,7 +507,7 @@ const Events = () => {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                     zIndex: 1000
                 }}>
-                    {notification} {username && <span>({username})</span>}
+                    {notification}
                 </div>
             )}
             {/* Organizer: show tabs and create/manage UI */}
@@ -507,6 +558,8 @@ const Events = () => {
                         showEdit={true}
                         onEdit={handleEditEvent}
                         onDelete={(eventId, eventName) => setDeleteConfirm({ id: eventId, name: eventName })}
+                        showReminder={true}
+                        onReminder={handleSendReminder}
                     />
                 </div>
             )}
