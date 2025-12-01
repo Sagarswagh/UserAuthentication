@@ -152,7 +152,22 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             setCreating(true);
             const token = getCookie('token');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            await axios.post(EVENTS_API_BASE, payload, { headers });
+            const res = await axios.post(EVENTS_API_BASE, payload, { headers });
+
+            // Call available-seats API
+            try {
+                const newEventId = res.data.event_id || res.data.id;
+                if (newEventId) {
+                    await axios.post('/available-seats', {
+                        event_id: newEventId,
+                        remaining_seats: Number(form.total_seats)
+                    });
+                }
+            } catch (seatErr) {
+                console.error('Failed to update available seats:', seatErr);
+                // We don't block the success message if this fails, but we log it
+            }
+
             setMessage('Event created');
             clearMessageLater();
             if (onEventCreated) onEventCreated();
