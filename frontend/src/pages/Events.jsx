@@ -6,6 +6,7 @@ import TimePicker from '../components/TimePicker';
 
 const rawEventsBase = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001/events';
 const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawEventsBase.replace(/\/$/, '') + '/events';
+const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8003';
 
 function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -528,8 +529,8 @@ const Events = () => {
                     reminder_type: "event_reminder"
                 }
             };
-            // The notification service is on port 8003
-            await axios.post('http://localhost:8003/api/notifications/send', payload);
+            // The notification service
+            await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/send`, payload);
             setNotification(`Reminder sent for "${event.event_name}"`);
             console.log(`Reminder sent for "${event.event_name}"`);
             setTimeout(() => setNotification(''), 2500);
