@@ -10,6 +10,7 @@ const rawEventsBase = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:
 const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawEventsBase.replace(/\/$/, '') + '/events';
 const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8003';
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000';
+const BOOKING_SERVICE_URL = import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8002';
 
 function getCookie(name) {
     const value = `; ${document.cookie} `;
@@ -222,7 +223,7 @@ const Events = () => {
     const fetchUserBookings = async () => {
         if (!userId) return;
         try {
-            const res = await axios.get(`/user/${userId}/bookings`);
+            const res = await axios.get(`${BOOKING_SERVICE_URL}/user/${userId}/bookings`);
             setUserBookings(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error('Failed to fetch bookings:', err);
@@ -236,7 +237,7 @@ const Events = () => {
         // Fetch all seats in parallel using Promise.all
         const seatPromises = events.map(async (event) => {
             try {
-                const res = await axios.get(`/available-seats/${event.event_id}`);
+                const res = await axios.get(`${BOOKING_SERVICE_URL}/available-seats/${event.event_id}`);
                 return { eventId: event.event_id, seats: res.data.remaining_seats };
             } catch (err) {
                 console.error(`Failed to fetch seats for ${event.event_id}:`, err);
@@ -279,7 +280,7 @@ const Events = () => {
     // Register handler
     const handleRegister = async (event) => {
         try {
-            const url = '/book';
+            const url = `${BOOKING_SERVICE_URL}/book`;
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
             const payload = {
@@ -325,7 +326,7 @@ const Events = () => {
         setCancelConfirm(null);
 
         try {
-            const url = `/booking/cancel/${booking.booking_id}`;
+            const url = `${BOOKING_SERVICE_URL}/booking/cancel/${booking.booking_id}`;
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
             const res = await axios.post(url, {}, { headers });
@@ -351,7 +352,7 @@ const Events = () => {
     // Fetch total count of registered users
     const fetchBookingsCount = async (eventId) => {
         try {
-            const res = await axios.get('/bookings/count', {
+            const res = await axios.get(`${BOOKING_SERVICE_URL}/bookings/count`, {
                 params: { event_id: eventId },
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
@@ -407,7 +408,7 @@ const Events = () => {
         console.log(`fetchRegisteredUsers called with pageOffset=${pageOffset}`);
         setLoadingUsers(true);
         try {
-            const res = await axios.get('/bookings/batch', {
+            const res = await axios.get(`${BOOKING_SERVICE_URL}/bookings/batch`, {
                 params: {
                     event_id: eventId,
                     offset: pageOffset,

@@ -5,6 +5,7 @@ import TimePicker from '../components/TimePicker';
 
 const RAW_EVENTS_BASE = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001';
 const EVENTS_API_BASE = RAW_EVENTS_BASE.replace(/\/$/, '') + '/events';
+const BOOKING_SERVICE_URL = import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8002';
 
 function getCookie(name) {
     const v = `; ${document.cookie}`;
@@ -158,7 +159,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated, onTabSwitch }) =>
             try {
                 const newEventId = res.data.event_id || res.data.id;
                 if (newEventId) {
-                    await axios.post('/available-seats', {
+                    await axios.post(`${BOOKING_SERVICE_URL}/available-seats`, {
                         event_id: newEventId,
                         remaining_seats: Number(form.total_seats)
                     });
