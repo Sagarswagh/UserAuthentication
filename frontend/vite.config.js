@@ -1,26 +1,31 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/available-seats': {
-        target: 'http://localhost:8002',
-        changeOrigin: true,
-      },
-      '/book': {
-        target: 'http://localhost:8002',
-        changeOrigin: true,
-      },
-      '/user': {
-        target: 'http://localhost:8002',
-        changeOrigin: true,
-      },
-      '/booking': {
-        target: 'http://localhost:8002',
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const target = env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8002';
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        '/available-seats': {
+          target: target,
+          changeOrigin: true,
+        },
+        '/book': {
+          target: target,
+          changeOrigin: true,
+        },
+        '/user': {
+          target: target,
+          changeOrigin: true,
+        },
+        '/booking': {
+          target: target,
+          changeOrigin: true,
+        }
       }
     }
   }

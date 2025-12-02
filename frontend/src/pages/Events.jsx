@@ -422,8 +422,18 @@ const Events = () => {
     const handleSendReminder = async (event) => {
         try {
             const payload = {
-                event_id: event.event_id,
-                notification_type: "event_reminder"
+                type: "event_reminder",
+                event: {
+                    event_id: event.event_id,
+                    event_name: event.event_name,
+                    description: event.description || "",
+                    start_time: event.start_time,
+                    end_time: event.end_time,
+                    organizer_id: event.organizer_id || "",
+                    location: event.location || "",
+                    remaining_seats: availableSeatsMap[event.event_id] !== undefined ? availableSeatsMap[event.event_id] : 0,
+                    reminder_type: "event_reminder"
+                }
             };
             // The notification service is on port 8003
             await axios.post('http://localhost:8003/api/notifications/send', payload);
