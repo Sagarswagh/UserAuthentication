@@ -6,6 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8002';
 
+  console.log('🔧 Vite Config - Booking Service Target:', target);
+
   return {
     plugins: [react()],
     server: {

@@ -150,7 +150,7 @@ const Events = () => {
     const username = getCookie('username') || '';
     const userId = (getCookie('user_id') || '').trim();
     const [notification, setNotification] = useState('');
-    const [tab, setTab] = useState('all'); // 'all' | 'create' | 'manage'
+    const [tab, setTab] = useState('all'); // 'all' | 'create' | 'manage' | 'users'
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -158,6 +158,10 @@ const Events = () => {
     const [userBookings, setUserBookings] = useState([]);
     const [availableSeatsMap, setAvailableSeatsMap] = useState({});
     const [cancelConfirm, setCancelConfirm] = useState(null);
+
+    // Admin user management state
+    const [allUsers, setAllUsers] = useState([]);
+    const [deleteUserConfirm, setDeleteUserConfirm] = useState(null);
 
     // For editing events
     const [editingEvent, setEditingEvent] = useState(null);
@@ -454,6 +458,33 @@ const Events = () => {
         navigate('/');
     };
 
+    // Admin: Fetch all users
+    const fetchAllUsers = async () => {
+        try {
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const res = await axios.get('http://localhost:8000/api/users/users', { headers });
+            setAllUsers(res.data || []);
+        } catch (err) {
+            console.error('Failed to fetch users:', err);
+            setNotification('Failed to fetch users');
+        }
+    };
+
+    // Admin: Delete user
+    const handleDeleteUser = async (userId) => {
+        try {
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            await axios.delete(`http://localhost:8000/api/users/users/${userId}`, { headers });
+            setNotification('User deleted successfully');
+            setTimeout(() => setNotification(''), 2500);
+            setDeleteUserConfirm(null);
+            fetchAllUsers(); // Refresh list
+        } catch (err) {
+            console.error('Failed to delete user:', err);
+            setNotification(err.response?.data?.detail || 'Failed to delete user');
+        }
+    };
+
     return (
         <div style={{ position: 'relative', minHeight: '100vh' }}>
             {/* User Menu - Top Right */}
@@ -546,25 +577,28 @@ const Events = () => {
                     {notification}
                 </div>
             )}
-            {/* Organizer: show tabs and create/manage UI */}
-            {role === 'organizer' && (
+            {/* Organizer/Admin: show tabs */}
+            {(role === 'organizer' || role === 'admin') && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto', marginTop: '2rem', marginBottom: '2rem', display: 'flex', gap: '1rem' }}>
                     <button className={tab === 'all' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('all')}>All Events</button>
                     <button className={tab === 'create' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('create')}>Create Event</button>
                     <button className={tab === 'manage' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('manage')}>Manage My Events</button>
+                    {role === 'admin' && (
+                        <button className={tab === 'users' ? 'btn-primary' : 'btn-secondary'} onClick={() => { setTab('users'); fetchAllUsers(); }}>Manage Users</button>
+                    )}
                 </div>
             )}
             {/* Tab content */}
-            {(role !== 'organizer' || tab === 'all') && (
+            {((role !== 'organizer' && role !== 'admin') || tab === 'all') && (
                 <EventsList token={token} showRegister={true} onRegister={handleRegister} onCancel={handleCancelRegistration} events={events} loading={loading} error={error} title="All Events" userBookings={userBookings} availableSeatsMap={availableSeatsMap} />
             )}
-            {role === 'organizer' && tab === 'create' && (
+            {(role === 'organizer' || role === 'admin') && tab === 'create' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
                     {/* You can move the OrganizerEvents form here, or inline a form */}
                     <OrganizerEvents inlineMode={true} onEventCreated={fetchAllEvents} />
                 </div>
             )}
-            {role === 'organizer' && tab === 'manage' && (
+            {(role === 'organizer' || role === 'admin') && tab === 'manage' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 0' }}>
                     <h2 style={{ marginBottom: '2rem' }}>My Events</h2>
                     {/* List and update only own events */}
@@ -582,6 +616,71 @@ const Events = () => {
                         onReminder={handleSendReminder}
                         availableSeatsMap={availableSeatsMap}
                     />
+                </div>
+            )}
+
+            {/* Admin: Manage Users Tab */}
+            {role === 'admin' && tab === 'users' && (
+                <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 0' }}>
+                    <h2 style={{ marginBottom: '2rem' }}>Manage Users</h2>
+                    <div className="glass-panel" style={{ padding: '1.5rem', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid rgba(99, 102, 241, 0.3)' }}>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#cbd5e1' }}>Email</th>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#cbd5e1' }}>Phone</th>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#cbd5e1' }}>Role</th>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#cbd5e1' }}>Created</th>
+                                    <th style={{ textAlign: 'center', padding: '0.75rem', color: '#cbd5e1' }}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allUsers.map((user) => (
+                                    <tr key={user.user_id} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                                        <td style={{ padding: '0.75rem' }}>{user.email}</td>
+                                        <td style={{ padding: '0.75rem' }}>{user.phone || '-'}</td>
+                                        <td style={{ padding: '0.75rem' }}>
+                                            <span style={{
+                                                padding: '0.25rem 0.5rem',
+                                                borderRadius: '0.25rem',
+                                                backgroundColor: user.role === 'admin' ? 'rgba(239, 68, 68, 0.2)' : user.role === 'organizer' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                                                color: user.role === 'admin' ? '#f87171' : user.role === 'organizer' ? '#818cf8' : '#4ade80',
+                                                fontSize: '0.875rem'
+                                            }}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td style={{ padding: '0.75rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                                <button
+                                                    onClick={() => setDeleteUserConfirm({ userId: user.user_id, email: user.email })}
+                                                    disabled={user.role === 'admin'}
+                                                    className="btn-secondary"
+                                                    style={{
+                                                        padding: '0.35rem 0.75rem',
+                                                        fontSize: '0.8rem',
+                                                        background: 'rgba(239, 68, 68, 0.2)',
+                                                        borderColor: 'rgba(239, 68, 68, 0.5)',
+                                                        color: '#f87171',
+                                                        opacity: user.role === 'admin' ? 0.5 : 1
+                                                    }}
+                                                    title={user.role === 'admin' ? 'Cannot delete admin' : 'Delete user'}
+                                                >
+                                                    🗑️ Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {allUsers.length === 0 && (
+                            <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>No users found</p>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -798,6 +897,54 @@ const Events = () => {
                                 onClick={cancelEdit}
                                 className="btn-secondary"
                                 disabled={editLoading}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete User Confirmation Modal */}
+            {deleteUserConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }}>
+                    <div className="glass-panel" style={{
+                        padding: '2rem',
+                        maxWidth: '450px',
+                        width: '90%',
+                    }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Delete User</h2>
+                        <p style={{ marginBottom: '1.5rem', color: '#cbd5e1' }}>
+                            Are you sure you want to delete user <strong>{deleteUserConfirm.email}</strong>?
+                            This action cannot be undone.
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => handleDeleteUser(deleteUserConfirm.userId)}
+                                className="btn-primary"
+                                style={{
+                                    flex: 1,
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                }}
+                            >
+                                Yes, Delete
+                            </button>
+                            <button
+                                onClick={() => setDeleteUserConfirm(null)}
+                                className="btn-secondary"
+                                style={{ flex: 1 }}
                             >
                                 Cancel
                             </button>

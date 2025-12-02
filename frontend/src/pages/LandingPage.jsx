@@ -44,6 +44,18 @@ const LandingPage = () => {
                     <h3>Organizer</h3>
                     <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Create and manage your events.</p>
                 </div>
+
+                <div
+                    className="glass-panel"
+                    style={{ padding: '2rem', width: '250px', textAlign: 'center', cursor: 'pointer', transition: 'transform 0.2s' }}
+                    onClick={() => navigate('/auth/admin')}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔐</div>
+                    <h3>Admin</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Manage users and oversee all events.</p>
+                </div>
             </div>
         </div>
     );

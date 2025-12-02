@@ -34,3 +34,14 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
     role: Optional[str] = None
+
+class UserListResponse(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    phone: Optional[str] = None
+    role: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+

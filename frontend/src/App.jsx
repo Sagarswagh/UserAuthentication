@@ -23,6 +23,11 @@ function App() {
               <AuthForm role="organizer" />
             </div>
           } />
+          <Route path="/auth/admin" element={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+              <AuthForm role="admin" />
+            </div>
+          } />
           <Route path="/organizer/events" element={<OrganizerEvents />} />
           <Route path="/events" element={<Events />} />
         </Routes>
