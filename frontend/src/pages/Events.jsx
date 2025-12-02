@@ -581,8 +581,12 @@ const Events = () => {
             {(role === 'organizer' || role === 'admin') && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto', marginTop: '2rem', marginBottom: '2rem', display: 'flex', gap: '1rem' }}>
                     <button className={tab === 'all' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('all')}>All Events</button>
-                    <button className={tab === 'create' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('create')}>Create Event</button>
-                    <button className={tab === 'manage' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('manage')}>Manage My Events</button>
+                    {role === 'organizer' && (
+                        <button className={tab === 'create' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('create')}>Create Event</button>
+                    )}
+                    <button className={tab === 'manage' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('manage')}>
+                        {role === 'admin' ? 'Manage Events' : 'Manage My Events'}
+                    </button>
                     {role === 'admin' && (
                         <button className={tab === 'users' ? 'btn-primary' : 'btn-secondary'} onClick={() => { setTab('users'); fetchAllUsers(); }}>Manage Users</button>
                     )}
@@ -600,13 +604,13 @@ const Events = () => {
             )}
             {(role === 'organizer' || role === 'admin') && tab === 'manage' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 0' }}>
-                    <h2 style={{ marginBottom: '2rem' }}>My Events</h2>
-                    {/* List and update only own events */}
+                    <h2 style={{ marginBottom: '2rem' }}>{role === 'admin' ? 'Manage Events' : 'My Events'}</h2>
+                    {/* List and update only own events for organizers, all events for admin */}
                     <EventsList
                         token={token}
                         showRegister={false}
                         onRegister={() => { }}
-                        events={myEvents}
+                        events={role === 'admin' ? events : myEvents}
                         loading={loading}
                         error={error}
                         showEdit={true}
