@@ -13,6 +13,7 @@ function AuthForm({ role }) {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const [notification, setNotification] = useState('');
 
@@ -40,6 +41,7 @@ function AuthForm({ role }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
         if (!isLogin && password !== confirmPassword) {
             setError("Passwords do not match");
@@ -76,6 +78,8 @@ function AuthForm({ role }) {
                 }
             } catch (err) {
                 setError(err.response?.data?.detail || 'Login error');
+            } finally {
+                setLoading(false);
             }
         } else {
             // Send signup data to backend
@@ -97,6 +101,8 @@ function AuthForm({ role }) {
                 }
             } catch (err) {
                 setError(err.response?.data?.detail || 'Registration error');
+            } finally {
+                setLoading(false);
             }
         }
     };
@@ -200,8 +206,9 @@ function AuthForm({ role }) {
                     </div>
                 )}
 
-                <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                <button type="submit" className="btn-primary" style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }} disabled={loading}>
                     {isLogin ? 'Login' : 'Sign Up'}
+                    {loading && <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #ffffff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
                 </button>
             </form>
 

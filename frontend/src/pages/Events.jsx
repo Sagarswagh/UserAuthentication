@@ -103,7 +103,7 @@ const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading
                                 </div>
                             )}
                             {showEdit && (
-                                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     <button
                                         className="btn-primary"
                                         onClick={() => onEdit(ev)}
@@ -144,8 +144,7 @@ const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading
                                             className="btn-primary"
                                             onClick={() => onAnalytics(ev)}
                                             style={{
-                                                marginTop: '0.5rem',
-                                                width: '100%',
+                                                flex: 1,
                                                 background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
                                             }}
                                         >
