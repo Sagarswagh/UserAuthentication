@@ -11,9 +11,23 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="User Authentication Service")
 
 # Allow CORS for React frontend
-origins = ["*"]  # Allow all origins for simplicity; adjust in production
+origins = [
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",  # Alternative React port
+    "http://localhost:8001",  # Events service
+    "https://*.netlify.app",  # Netlify deployments
+    "https://*.vercel.app",   # Vercel deployments
+    "https://*.onrender.com", # Render deployments
+]
+
+# If in production, get frontend URL from environment
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url and frontend_url not in origins:
+    origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.(netlify\.app|vercel\.app|onrender\.com)",  # Allow subdomains
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
