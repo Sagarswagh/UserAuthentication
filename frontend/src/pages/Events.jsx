@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import OrganizerEvents from './OrganiseEvents';
 import TimePicker from '../components/TimePicker';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 const rawEventsBase = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001/events';
 const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawEventsBase.replace(/\/$/, '') + '/events';
@@ -232,16 +233,25 @@ const Events = () => {
 
     // Fetch available seats for events
     const fetchAvailableSeats = async (events) => {
-        const seatsMap = {};
-        for (const event of events) {
+        // Fetch all seats in parallel using Promise.all
+        const seatPromises = events.map(async (event) => {
             try {
                 const res = await axios.get(`/available-seats/${event.event_id}`);
-                seatsMap[event.event_id] = res.data.remaining_seats;
+                return { eventId: event.event_id, seats: res.data.remaining_seats };
             } catch (err) {
                 console.error(`Failed to fetch seats for ${event.event_id}:`, err);
-                seatsMap[event.event_id] = null;
+                return { eventId: event.event_id, seats: null };
             }
-        }
+        });
+
+        const results = await Promise.all(seatPromises);
+
+        // Build the seats map from results
+        const seatsMap = {};
+        results.forEach(({ eventId, seats }) => {
+            seatsMap[eventId] = seats;
+        });
+
         setAvailableSeatsMap(seatsMap);
     };
 
@@ -275,7 +285,7 @@ const Events = () => {
             const payload = {
                 event_id: event.event_id,
                 user_id: userId,
-                user_email: username, // Assuming username is the email as per requirement
+                user_email: username,
                 event_Name: event.event_name
             };
 
@@ -285,11 +295,12 @@ const Events = () => {
                 // Optimistic update
                 setUserBookings(prev => [...prev, { event_id: event.event_id }]);
                 setTimeout(() => setNotification(''), 2500);
-                fetchAllEvents();
-                // Add a small delay to allow backend to update
-                setTimeout(() => {
-                    fetchUserBookings();
-                }, 500);
+
+                // Wait for all refresh calls to complete together
+                await Promise.all([
+                    fetchAllEvents(),
+                    fetchUserBookings()
+                ]);
             } else {
                 setNotification('Registration response: ' + res.statusText);
             }
@@ -323,11 +334,12 @@ const Events = () => {
                 // Optimistic update: remove from userBookings
                 setUserBookings(prev => prev.filter(b => b.booking_id !== booking.booking_id));
                 setTimeout(() => setNotification(''), 2500);
-                fetchAllEvents(); // Refresh to update available seats
-                // Refresh bookings after a delay
-                setTimeout(() => {
-                    fetchUserBookings();
-                }, 500);
+
+                // Wait for all refresh calls to complete together
+                await Promise.all([
+                    fetchAllEvents(),
+                    fetchUserBookings()
+                ]);
             } else {
                 setNotification('Cancellation response: ' + res.statusText);
             }
@@ -621,6 +633,7 @@ const Events = () => {
 
     return (
         <div style={{ position: 'relative', minHeight: '100vh' }}>
+            <LoadingOverlay isLoading={loading} />
             {/* User Menu - Top Right */}
             <div style={{
                 position: 'fixed',
