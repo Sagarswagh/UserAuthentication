@@ -8,6 +8,7 @@ import TimePicker from '../components/TimePicker';
 const rawEventsBase = import.meta.env.VITE_EVENTS_API_BASE || 'http://localhost:8001/events';
 const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawEventsBase.replace(/\/$/, '') + '/events';
 const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8003';
+const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000';
 
 function getCookie(name) {
     const value = `; ${document.cookie} `;
@@ -595,7 +596,7 @@ const Events = () => {
     const fetchAllUsers = async () => {
         try {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const res = await axios.get('http://localhost:8000/api/users/users', { headers });
+            const res = await axios.get(`${AUTH_SERVICE_URL}/api/users/users`, { headers });
             setAllUsers(res.data || []);
         } catch (err) {
             console.error('Failed to fetch users:', err);
@@ -607,7 +608,7 @@ const Events = () => {
     const handleDeleteUser = async (userId) => {
         try {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            await axios.delete(`http://localhost:8000/api/users/users/${userId}`, { headers });
+            await axios.delete(`${AUTH_SERVICE_URL}/api/users/users/${userId}`, { headers });
             setNotification('User deleted successfully');
             setTimeout(() => setNotification(''), 2500);
             setDeleteUserConfirm(null);

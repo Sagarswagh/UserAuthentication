@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const AuthForm = ({ role }) => {
+const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000';
+
+function AuthForm({ role }) {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -59,7 +61,7 @@ const AuthForm = ({ role }) => {
                     password,
                     role
                 };
-                const response = await axios.post('http://localhost:8000/api/users/login', payload);
+                const response = await axios.post(`${AUTH_SERVICE_URL}/api/users/login`, payload);
                 if (response.status === 200 && response.data.access_token) {
                     document.cookie = `token=${response.data.access_token}; path=/;`; // Store JWT in cookie
                     document.cookie = `role=${response.data.role}; path=/;`;
@@ -84,7 +86,7 @@ const AuthForm = ({ role }) => {
                     password,
                     role
                 };
-                const response = await axios.post('http://localhost:8000/api/users/register', payload);
+                const response = await axios.post(`${AUTH_SERVICE_URL}/api/users/register`, payload);
                 if (response.status === 200) {
                     setNotification('Registration successful! Please login with your new account.');
                     setTimeout(() => setNotification(''), 2500);
