@@ -43,6 +43,14 @@ const AuthForm = ({ role }) => {
             return;
         }
 
+        if (!isLogin) {
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                setError("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)");
+                return;
+            }
+        }
+
         if (isLogin) {
             // Send login data to backend
             try {
