@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+
 import OrganizerEvents from './OrganiseEvents';
 import TimePicker from '../components/TimePicker';
 
@@ -9,7 +10,7 @@ const EVENTS_API_BASE = rawEventsBase.endsWith('/events') ? rawEventsBase : rawE
 const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8003';
 
 function getCookie(name) {
-    const value = `; ${document.cookie}`;
+    const value = `; ${document.cookie} `;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
     return null;
@@ -73,7 +74,8 @@ const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading
                             {showRegister && (
                                 <div style={{ marginTop: '0.75rem' }}>
                                     {(() => {
-                                        const activeBooking = userBookings.find(b =>
+                                        const bookings = Array.isArray(userBookings) ? userBookings : [];
+                                        const activeBooking = bookings.find(b =>
                                             String(b.event_id) === String(ev.event_id) &&
                                             (b.status === 'confirmed' || b.status === 'waiting')
                                         );
@@ -179,6 +181,10 @@ const Events = () => {
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [totalUsers, setTotalUsers] = useState(0);
 
+    // Calendar view states
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Admin user management state
     const [allUsers, setAllUsers] = useState([]);
     const [deleteUserConfirm, setDeleteUserConfirm] = useState(null);
@@ -215,9 +221,10 @@ const Events = () => {
         if (!userId) return;
         try {
             const res = await axios.get(`/user/${userId}/bookings`);
-            setUserBookings(res.data || []);
+            setUserBookings(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error('Failed to fetch bookings:', err);
+            setUserBookings([]);
         }
     };
 
@@ -243,7 +250,7 @@ const Events = () => {
             setLoading(true);
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const res = await axios.get(EVENTS_API_BASE, { headers });
-            const eventsList = res.data || [];
+            const eventsList = Array.isArray(res.data) ? res.data : [];
             setEvents(eventsList);
             if (role === 'organizer' && userId) {
                 setMyEvents(eventsList.filter(ev => ev.organizer_id && ev.organizer_id.toLowerCase() === userId.toLowerCase()));
@@ -345,6 +352,42 @@ const Events = () => {
             return 0;
         }
     };
+
+
+    // Month navigation functions
+    const handlePrevMonth = () => {
+        const newDate = new Date(selectedDate);
+        newDate.setMonth(newDate.getMonth() - 1);
+        setSelectedDate(newDate);
+    };
+
+    const handleNextMonth = () => {
+        const newDate = new Date(selectedDate);
+        newDate.setMonth(newDate.getMonth() + 1);
+        setSelectedDate(newDate);
+    };
+
+    const isCurrentMonth = () => {
+        const today = new Date();
+        return selectedDate.getMonth() === today.getMonth() &&
+            selectedDate.getFullYear() === today.getFullYear();
+    };
+
+    const filteredEvents = events.filter(e => {
+        // Month filter
+        const eventDate = e.date || e.event_date || e.start_time;
+        if (!eventDate) return false;
+        const d = new Date(eventDate);
+        const matchesMonth = d.getMonth() === selectedDate.getMonth() &&
+            d.getFullYear() === selectedDate.getFullYear();
+
+        // Search filter (case-insensitive)
+        const matchesSearch = searchQuery.trim() === '' ||
+            (e.event_name && e.event_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return matchesMonth && matchesSearch;
+    });
+
 
     // Fetch registered users for analytics (with pagination)
     const fetchRegisteredUsers = async (eventId, pageOffset = 0) => {
@@ -684,7 +727,127 @@ const Events = () => {
             )}
             {/* Tab content */}
             {((role !== 'organizer' && role !== 'admin') || tab === 'all') && (
-                <EventsList token={token} showRegister={true} onRegister={handleRegister} onCancel={handleCancelRegistration} events={events} loading={loading} error={error} title="All Events" userBookings={userBookings} availableSeatsMap={availableSeatsMap} />
+                <>
+                    {/* Search Bar */}
+                    <div style={{
+                        maxWidth: '600px',
+                        margin: '0 auto 1.5rem',
+                        position: 'relative'
+                    }}>
+                        <div style={{ position: 'relative' }}>
+                            <span style={{
+                                position: 'absolute',
+                                left: '1rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '1.2rem'
+                            }}>🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search events by name..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem 3rem 0.75rem 3rem',
+                                    background: 'rgba(30, 41, 59, 0.7)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '12px',
+                                    color: 'white',
+                                    fontSize: '1rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s',
+                                    backdropFilter: 'blur(10px)'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = 'rgba(99, 102, 241, 0.5)'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '1rem',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#94a3b8',
+                                        fontSize: '1.5rem',
+                                        cursor: 'pointer',
+                                        padding: '0.25rem',
+                                        lineHeight: 1,
+                                        transition: 'color 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.color = 'white'}
+                                    onMouseLeave={(e) => e.target.style.color = '#94a3b8'}
+                                    title="Clear search"
+                                >
+                                    ×
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Month Navigation */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginBottom: '2rem',
+                        gap: '1rem'
+                    }}>
+                        <button
+                            onClick={handlePrevMonth}
+                            disabled={isCurrentMonth()}
+                            style={{
+                                background: isCurrentMonth() ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.1)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                color: isCurrentMonth() ? '#64748b' : 'white',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                cursor: isCurrentMonth() ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            &lt; Previous
+                        </button>
+
+                        <h2 style={{ margin: 0, minWidth: '200px', textAlign: 'center' }}>
+                            {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </h2>
+
+                        <button
+                            onClick={handleNextMonth}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                color: 'white',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Next &gt;
+                        </button>
+                    </div>
+
+                    <EventsList
+                        token={token}
+                        showRegister={true}
+                        onRegister={handleRegister}
+                        onCancel={handleCancelRegistration}
+                        events={filteredEvents}
+                        loading={loading}
+                        error={error}
+                        title={`Events for ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`}
+                        userBookings={userBookings}
+                        availableSeatsMap={availableSeatsMap}
+                        showAnalytics={role === 'organizer'}
+                        onAnalytics={handleAnalytics}
+                    />
+                </>
             )}
             {(role === 'organizer' || role === 'admin') && tab === 'create' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
