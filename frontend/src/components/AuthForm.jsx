@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000';
 
 function AuthForm({ role }) {
+    // Admin can only login, not sign up
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -204,15 +205,18 @@ function AuthForm({ role }) {
                 </button>
             </form>
 
-            <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <button
-                    onClick={() => setIsLogin(!isLogin)}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
-                >
-                    {isLogin ? 'Sign Up' : 'Login'}
-                </button>
-            </div>
+            {/* Hide signup toggle for admin */}
+            {role !== 'admin' && (
+                <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
+                    {isLogin ? "Don't have an account? " : "Already have an account? "}
+                    <button
+                        onClick={() => setIsLogin(!isLogin)}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
+                    >
+                        {isLogin ? 'Sign Up' : 'Login'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
