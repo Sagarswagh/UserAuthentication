@@ -15,7 +15,7 @@ function getCookie(name) {
 }
 
 
-const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading, error, showEdit, onEdit, onDelete, showReminder, onReminder, title, userBookings = [], availableSeatsMap = {} }) => {
+const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading, error, showEdit, onEdit, onDelete, showReminder, onReminder, showAnalytics, onAnalytics, title, userBookings = [], availableSeatsMap = {} }) => {
     return (
         <div style={{ padding: '2rem', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -133,6 +133,19 @@ const EventsList = ({ token, showRegister, onRegister, onCancel, events, loading
                                         <span style={{ fontSize: '0.875rem' }}>🗑️</span>
                                         Delete
                                     </button>
+                                    {showAnalytics && (
+                                        <button
+                                            className="btn-primary"
+                                            onClick={() => onAnalytics(ev)}
+                                            style={{
+                                                marginTop: '0.5rem',
+                                                width: '100%',
+                                                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                                            }}
+                                        >
+                                            📊 Analytics
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -158,6 +171,12 @@ const Events = () => {
     const [userBookings, setUserBookings] = useState([]);
     const [availableSeatsMap, setAvailableSeatsMap] = useState({});
     const [cancelConfirm, setCancelConfirm] = useState(null);
+    const [analyticsEvent, setAnalyticsEvent] = useState(null);
+    const [registeredUsers, setRegisteredUsers] = useState([]);
+    const [usersOffset, setUsersOffset] = useState(0);
+    const [hasMoreUsers, setHasMoreUsers] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [totalUsers, setTotalUsers] = useState(0);
 
     // Admin user management state
     const [allUsers, setAllUsers] = useState([]);
@@ -306,6 +325,76 @@ const Events = () => {
         } catch (err) {
             setNotification(err.response?.data?.detail || 'Failed to cancel registration.');
         }
+    };
+
+    // Fetch total count of registered users
+    const fetchBookingsCount = async (eventId) => {
+        try {
+            const res = await axios.get('/bookings/count', {
+                params: { event_id: eventId },
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            console.log('Count API response:', res.data);
+            // Extract total_bookings from response
+            const count = res.data?.total_bookings || 0;
+            console.log('Extracted count:', count);
+            return count;
+        } catch (err) {
+            console.error('Failed to fetch bookings count:', err);
+            return 0;
+        }
+    };
+
+    // Fetch registered users for analytics (with pagination)
+    const fetchRegisteredUsers = async (eventId, pageOffset = 0) => {
+        console.log(`fetchRegisteredUsers called with pageOffset=${pageOffset}`);
+        setLoadingUsers(true);
+        try {
+            const res = await axios.get('/bookings/batch', {
+                params: {
+                    event_id: eventId,
+                    offset: pageOffset,
+                    batch_size: 5
+                },
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            const newUsers = res.data || [];
+            console.log(`Received ${newUsers.length} users from page ${pageOffset}`);
+            if (pageOffset === 0) {
+                setRegisteredUsers(newUsers);
+            } else {
+                setRegisteredUsers(prev => [...prev, ...newUsers]);
+            }
+            // If we got exactly 5 records, there might be more
+            setHasMoreUsers(newUsers.length === 5);
+            // Next page number
+            setUsersOffset(pageOffset + 1);
+        } catch (err) {
+            // Handle 404 as end of results (no more data)
+            if (err.response?.status === 404) {
+                setHasMoreUsers(false);
+            } else {
+                console.error('Failed to fetch registered users:', err);
+                setNotification('Failed to load analytics data');
+            }
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    // Open analytics modal
+    const handleAnalytics = async (event) => {
+        setAnalyticsEvent(event);
+        setRegisteredUsers([]);
+        setUsersOffset(0);
+        setHasMoreUsers(false);
+
+        // First get total count
+        const count = await fetchBookingsCount(event.event_id);
+        setTotalUsers(count);
+
+        // Then fetch first batch
+        fetchRegisteredUsers(event.event_id, 0);
     };
 
     // Helper to convert ISO datetime to date and time inputs
@@ -618,6 +707,8 @@ const Events = () => {
                         onDelete={(eventId, eventName) => setDeleteConfirm({ id: eventId, name: eventName })}
                         showReminder={true}
                         onReminder={handleSendReminder}
+                        showAnalytics={true}
+                        onAnalytics={handleAnalytics}
                         availableSeatsMap={availableSeatsMap}
                     />
                 </div>
@@ -777,6 +868,101 @@ const Events = () => {
                                 style={{ flex: 1 }}
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Analytics Modal */}
+            {analyticsEvent && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }}>
+                    <div className="glass-panel" style={{
+                        padding: '2rem',
+                        maxWidth: '900px',
+                        width: '90%',
+                        maxHeight: '90vh',
+                        overflowY: 'auto',
+                    }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Event Analytics: {analyticsEvent.event_name}</h2>
+                        <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+                            Registered Participants {totalUsers > 0 && `(1-${registeredUsers.length} of ${totalUsers})`}
+                        </p>
+
+                        {registeredUsers.length === 0 && !loadingUsers ? (
+                            <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No registrations yet</p>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{
+                                    width: '100%',
+                                    borderCollapse: 'collapse',
+                                    marginBottom: '1.5rem',
+                                }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid rgba(148, 163, 184, 0.3)' }}>
+                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#cbd5e1' }}>Email</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#cbd5e1' }}>Booking Time</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#cbd5e1' }}>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {registeredUsers.map((user, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                                                <td style={{ padding: '0.75rem', color: '#e2e8f0' }}>{user.user_email}</td>
+                                                <td style={{ padding: '0.75rem', color: '#94a3b8' }}>
+                                                    {new Date(user.booking_time).toLocaleString()}
+                                                </td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <span style={{
+                                                        padding: '0.25rem 0.5rem',
+                                                        borderRadius: '0.25rem',
+                                                        fontSize: '0.875rem',
+                                                        background: user.status === 'confirmed' ? 'rgba(34, 197, 94, 0.2)' :
+                                                            user.status === 'waiting' ? 'rgba(249, 115, 22, 0.2)' :
+                                                                'rgba(148, 163, 184, 0.2)',
+                                                        color: user.status === 'confirmed' ? '#4ade80' :
+                                                            user.status === 'waiting' ? '#fb923c' :
+                                                                '#94a3b8',
+                                                    }}>
+                                                        {user.status || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {loadingUsers && <p style={{ textAlign: 'center', color: '#94a3b8' }}>Loading...</p>}
+
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                            {hasMoreUsers && !loadingUsers && (
+                                <button
+                                    onClick={() => fetchRegisteredUsers(analyticsEvent.event_id, usersOffset)}
+                                    className="btn-primary"
+                                    style={{ flex: 1 }}
+                                >
+                                    Load More
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setAnalyticsEvent(null)}
+                                className="btn-secondary"
+                                style={{ flex: hasMoreUsers ? 1 : 'auto' }}
+                            >
+                                Close
                             </button>
                         </div>
                     </div>

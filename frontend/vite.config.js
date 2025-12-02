@@ -24,6 +24,14 @@ export default defineConfig(({ mode }) => {
           target: target,
           changeOrigin: true,
         },
+        '/bookings/count': {
+          target: target,
+          changeOrigin: true,
+        },
+        '/bookings': {
+          target: target,
+          changeOrigin: true,
+        },
         '/booking': {
           target: target,
           changeOrigin: true,
