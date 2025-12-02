@@ -866,7 +866,11 @@ const Events = () => {
             {(role === 'organizer' || role === 'admin') && tab === 'create' && (
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
                     {/* You can move the OrganizerEvents form here, or inline a form */}
-                    <OrganizerEvents inlineMode={true} onEventCreated={fetchAllEvents} />
+                    <OrganizerEvents
+                        inlineMode={true}
+                        onEventCreated={fetchAllEvents}
+                        onTabSwitch={() => setTab('all')}
+                    />
                 </div>
             )}
             {(role === 'organizer' || role === 'admin') && tab === 'manage' && (

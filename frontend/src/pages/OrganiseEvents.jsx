@@ -13,7 +13,7 @@ function getCookie(name) {
     return null;
 }
 
-const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
+const OrganizerEvents = ({ inlineMode = false, onEventCreated, onTabSwitch }) => {
     const navigate = useNavigate();
 
     const [organizerId, setOrganizerId] = useState(null);
@@ -32,7 +32,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
         end_date: '',
         end_time: '',
         location: '',
-        total_seats: 0,
+        total_seats: '',
     });
 
     const [creating, setCreating] = useState(false);
@@ -45,7 +45,7 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
         end_date: '',
         end_time: '',
         location: '',
-        total_seats: 0,
+        total_seats: '',
     });
     const [editLoading, setEditLoading] = useState(false);
 
@@ -171,6 +171,8 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
             setMessage('Event created');
             clearMessageLater();
             if (onEventCreated) onEventCreated();
+
+            // Reset form
             setForm({
                 event_name: '',
                 description: '',
@@ -179,9 +181,17 @@ const OrganizerEvents = ({ inlineMode = false, onEventCreated }) => {
                 end_date: '',
                 end_time: '',
                 location: '',
-                total_seats: 0,
+                total_seats: '',
             });
-            if (!inlineMode) fetchEvents(organizerId);
+
+            // Redirect to events page to see all events
+            if (!inlineMode) {
+                fetchEvents(organizerId);
+            } else if (onTabSwitch) {
+                onTabSwitch();  // Switch to 'all' tab
+            } else {
+                navigate('/events');
+            }
         } catch (err) {
             console.error(err);
             const detail = err.response?.data?.detail;
